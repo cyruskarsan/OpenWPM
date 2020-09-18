@@ -1,4 +1,3 @@
-
 import base64
 import gzip
 import hashlib
@@ -19,27 +18,28 @@ from botocore.client import Config
 from botocore.exceptions import ClientError, EndpointConnectionError
 from pyarrow.filesystem import S3FSWrapper  # noqa
 
-from .base import (RECORD_TYPE_CONTENT, RECORD_TYPE_CREATE,
-                   RECORD_TYPE_SPECIAL, BaseAggregator, BaseListener,
-                   BaseParams)
+from .base import (
+    RECORD_TYPE_CONTENT,
+    RECORD_TYPE_CREATE,
+    RECORD_TYPE_SPECIAL,
+    BaseAggregator,
+    BaseListener,
+    BaseParams,
+)
 from .parquet_schema import PQ_SCHEMAS
 
 CACHE_SIZE = 500
-SITE_VISITS_INDEX = '_site_visits_index'
-CONTENT_DIRECTORY = 'content'
-CONFIG_DIR = 'config'
+SITE_VISITS_INDEX = "_site_visits_index"
+CONTENT_DIRECTORY = "content"
+CONFIG_DIR = "config"
 BATCH_COMMIT_TIMEOUT = 30  # commit a batch if no new records for N seconds
-S3_CONFIG_KWARGS = {
-    'retries': {
-        'max_attempts': 20
-    }
-}
+S3_CONFIG_KWARGS = {"retries": {"max_attempts": 20}}
 S3_CONFIG = Config(**S3_CONFIG_KWARGS)
 
 
-def listener_process_runner(base_params: BaseParams,
-                            manager_params: Dict[str, Any],
-                            instance_id: int) -> None:
+def listener_process_runner(
+    base_params: BaseParams, manager_params: Dict[str, Any], instance_id: int
+) -> None:
     """S3Listener runner. Pass to new process"""
     listener = S3Listener(base_params, manager_params, instance_id)
     listener.startup()
@@ -68,26 +68,23 @@ class S3Listener(BaseListener):
     ./parquet_schema.py
     """
 
-    def __init__(self,
-                 base_params: BaseParams,
-                 manager_params: Dict[str, Any],
-                 instance_id: int) -> None:
-        self.dir = manager_params['s3_directory']
-        self._bucket = manager_params['s3_bucket']
-        self._s3_content_cache: MutableSet[str] = \
-            set()  # cache of filenames already uploaded
-        self._s3 = boto3.client('s3', config=S3_CONFIG)
-        self._s3_resource = boto3.resource('s3', config=S3_CONFIG)
+    def __init__(
+        self, base_params: BaseParams, manager_params: Dict[str, Any], instance_id: int
+    ) -> None:
+        self.dir = manager_params["s3_directory"]
+        self._bucket = manager_params["s3_bucket"]
+        self._s3_content_cache: MutableSet[
+            str
+        ] = set()  # cache of filenames already uploaded
+        self._s3 = boto3.client("s3", config=S3_CONFIG)
+        self._s3_resource = boto3.resource("s3", config=S3_CONFIG)
         self._fs = s3fs.S3FileSystem(
-            session=boto3.DEFAULT_SESSION,
-            config_kwargs=S3_CONFIG_KWARGS
+            session=boto3.DEFAULT_SESSION, config_kwargs=S3_CONFIG_KWARGS
         )
-        self._s3_bucket_uri = 's3://%s/%s/visits/%%s' % (
-            self._bucket, self.dir)
+        self._s3_bucket_uri = "s3://%s/%s/visits/%%s" % (self._bucket, self.dir)
         # time last record was received
         self._last_record_received: Optional[float] = None
         super(S3Listener, self).__init__(*base_params)
-
 
     def _create_batch(self, visit_id: int) -> None:
         """Create record batches for all records from `visit_id`"""
@@ -107,13 +104,13 @@ class S3Listener(BaseListener):
                 )
             except pa.lib.ArrowInvalid:
                 self.logger.error(
-                    "Error while creating record batch for table %s\n"
-                    % table_name, exc_info=True
+                    "Error while creating record batch for table %s\n" % table_name,
+                    exc_info=True,
                 )
                 pass
             # We construct a special index file from the site_visits data
             # to make it easier to query the dataset
-            if table_name == 'site_visits':
+            if table_name == "site_visits":
                 if SITE_VISITS_INDEX not in self._batches:
                     self._batches[SITE_VISITS_INDEX] = list()
                 for item in data:
@@ -125,38 +122,33 @@ class S3Listener(BaseListener):
     def _exists_on_s3(self, filename: str) -> bool:
         """Check if `filename` already exists on S3"""
         # Check local filename cache
-        if filename.split('/', 1)[1] in self._s3_content_cache:
-            self.logger.debug(
-                "File `%s` found in content cache." % filename)
+        if filename.split("/", 1)[1] in self._s3_content_cache:
+            self.logger.debug("File `%s` found in content cache." % filename)
             return True
 
         # Check S3
         try:
             self._s3_resource.Object(self._bucket, filename).load()
         except ClientError as e:
-            if e.response['Error']['Code'] == "404":
+            if e.response["Error"]["Code"] == "404":
                 return False
             else:
                 raise
         except EndpointConnectionError:
             self.logger.error(
-                "Exception while checking if file exists %s" % filename,
-                exc_info=True
+                "Exception while checking if file exists %s" % filename, exc_info=True
             )
             return False
 
         # Add filename to local cache to avoid remote lookups on next request
         # We strip the bucket name as its the same for all files
-        self._s3_content_cache.add(filename.split('/', 1)[1])
+        self._s3_content_cache.add(filename.split("/", 1)[1])
         return True
 
-    def run_visit_completion_tasks(self, visit_id: int,
-                                   interrupted: bool = False):
+    def run_visit_completion_tasks(self, visit_id: int, interrupted: bool = False):
         if interrupted:
-            self.logger.error(
-                "Visit with visit_id %d got interrupted", visit_id)
-            self._write_record("incomplete_visits",
-                               {"visit_id": visit_id}, visit_id)
+            self.logger.error("Visit with visit_id %d got interrupted", visit_id)
+            self._write_record("incomplete_visits", {"visit_id": visit_id}, visit_id)
             self._create_batch(visit_id)
             self.mark_visit_incomplete(visit_id)
             return
@@ -194,20 +186,20 @@ column, and thus can be no larger than 32 bits.
 
 def __init__(self, manager_params, browser_params):
     BaseAggregator.__init__(self, manager_params, browser_params)
-    self.dir = manager_params['s3_directory']
-    self.bucket = manager_params['s3_bucket']
-    self.s3 = boto3.client('s3')
+    self.dir = manager_params["s3_directory"]
+    self.bucket = manager_params["s3_bucket"]
+    self.s3 = boto3.client("s3")
     self._instance_id = random.getrandbits(32)
     self._create_bucket()
 
 
 def _create_bucket(self):
     """Create remote S3 bucket if it doesn't exist"""
-    resource = boto3.resource('s3')
+    resource = boto3.resource("s3")
     try:
         resource.meta.client.head_bucket(Bucket=self.bucket)
     except ClientError as e:
-        error_code = int(e.response['Error']['Code'])
+        error_code = int(e.response["Error"]["Code"])
         if error_code == 404:
             resource.create_bucket(Bucket=self.bucket)
         else:
@@ -219,16 +211,19 @@ def save_configuration(self, openwpm_version, browser_version):
 
     # Save config keyed by task id
     fname = "%s/%s/instance-%s_configuration.json" % (
-        self.dir, CONFIG_DIR, self._instance_id)
+        self.dir,
+        CONFIG_DIR,
+        self._instance_id,
+    )
 
     # Config parameters for update
     out = dict()
-    out['manager_params'] = self.manager_params
-    out['openwpm_version'] = str(openwpm_version)
-    out['browser_version'] = str(browser_version)
-    out['browser_params'] = self.browser_params
+    out["manager_params"] = self.manager_params
+    out["openwpm_version"] = str(openwpm_version)
+    out["browser_version"] = str(browser_version)
+    out["browser_params"] = self.browser_params
     out_str = json.dumps(out)
-    out_bytes = out_str.encode('utf-8')
+    out_bytes = out_str.encode("utf-8")
     out_f = io.BytesIO(out_bytes)
 
     # Upload to S3 and delete local copy
@@ -262,4 +257,5 @@ def get_next_crawl_id(self):
 def launch(self):
     """Launch the aggregator listener process"""
     BaseAggregator.launch(
-        listener_process_runner, self.manager_params, self._instance_id)
+        listener_process_runner, self.manager_params, self._instance_id
+    )

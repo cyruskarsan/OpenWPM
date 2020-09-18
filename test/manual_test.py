@@ -1,4 +1,3 @@
-
 import atexit
 import subprocess
 from os.path import dirname, join, realpath
@@ -22,10 +21,10 @@ from selenium.common.exceptions import *  # noqa isort:skip
 OPENWPM_LOG_PREFIX = "console.log: openwpm: "
 INSERT_PREFIX = "Array"
 BASE_DIR = dirname(dirname(realpath(__file__)))
-EXT_PATH = join(BASE_DIR, 'automation', 'Extension', 'firefox')
+EXT_PATH = join(BASE_DIR, "automation", "Extension", "firefox")
 
 
-class Logger():
+class Logger:
     def __init__(self):
         return
 
@@ -43,19 +42,20 @@ class Logger():
 
 
 class bcolors:
-    HEADER = '\033[95m'
-    OKBLUE = '\033[94m'
-    OKGREEN = '\033[92m'
-    WARNING = '\033[93m'
-    FAIL = '\033[91m'
-    ENDC = '\033[0m'
-    BOLD = '\033[1m'
-    UNDERLINE = '\033[4m'
+    HEADER = "\033[95m"
+    OKBLUE = "\033[94m"
+    OKGREEN = "\033[92m"
+    WARNING = "\033[93m"
+    FAIL = "\033[91m"
+    ENDC = "\033[0m"
+    BOLD = "\033[1m"
+    UNDERLINE = "\033[4m"
 
 
 def get_command_output(command, cwd=None):
-    popen = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE,
-                             stderr=subprocess.STDOUT, cwd=cwd)
+    popen = subprocess.Popen(
+        command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, cwd=cwd
+    )
     return iter(popen.stdout.readline, b"")
 
 
@@ -63,13 +63,12 @@ def colorize(line):
     if INSERT_PREFIX in line:  # print long DB insert lines in blue
         line = line.replace(INSERT_PREFIX, bcolors.OKBLUE + INSERT_PREFIX)
     if OPENWPM_LOG_PREFIX in line:
-        line = line.replace(OPENWPM_LOG_PREFIX,
-                            OPENWPM_LOG_PREFIX + bcolors.OKGREEN)
+        line = line.replace(OPENWPM_LOG_PREFIX, OPENWPM_LOG_PREFIX + bcolors.OKGREEN)
     return line
 
 
 def start_webdriver(with_extension=False):
-    """ Open a webdriver instance and a server for the test pages
+    """Open a webdriver instance and a server for the test pages
 
     This is meant to be imported and run manually from a python or
     ipython shell. A webdriver instance is returned and both the webdriver
@@ -110,12 +109,13 @@ def start_webdriver(with_extension=False):
         # fp.set_preference("extensions.@openwpm.sdk.console.logLevel", "all")
         configure_firefox.optimize_prefs(fp)
     driver = webdriver.Firefox(
-        firefox_binary=fb, firefox_profile=fp,
+        firefox_binary=fb,
+        firefox_profile=fp,
     )
     if with_extension:
         # add openwpm extension to profile
         create_xpi()
-        ext_xpi = join(EXT_PATH, 'openwpm.xpi')
+        ext_xpi = join(EXT_PATH, "openwpm.xpi")
         driver.install_addon(ext_xpi, temporary=True)
 
     return register_cleanup(driver)
@@ -123,13 +123,15 @@ def start_webdriver(with_extension=False):
 
 def start_webext():
     firefox_binary_path = get_firefox_binary_path()
-    cmd_webext_run = "npm start -- --start-url '%s' --firefox '%s'" \
-        % (BASE_TEST_URL, firefox_binary_path)
+    cmd_webext_run = "npm start -- --start-url '%s' --firefox '%s'" % (
+        BASE_TEST_URL,
+        firefox_binary_path,
+    )
     server, thread = start_server()
     try:
         # http://stackoverflow.com/a/4417735/3104416
         for line in get_command_output(cmd_webext_run, cwd=EXT_PATH):
-            print(colorize(line.decode("utf-8")), bcolors.ENDC, end=' ')
+            print(colorize(line.decode("utf-8")), bcolors.ENDC, end=" ")
     except KeyboardInterrupt:
         print("Keyboard Interrupt detected, shutting down...")
     print("\nClosing server thread...")
@@ -138,27 +140,32 @@ def start_webext():
 
 
 def main():
-    import IPython
     import sys
+
+    import IPython
 
     # TODO use some real parameter handling library
     if len(sys.argv) == 1:
         start_webext()
-    elif len(sys.argv) >= 2 and sys.argv[1] == '--selenium':
-        if len(sys.argv) == 3 and sys.argv[2] == '--no-extension':
+    elif len(sys.argv) >= 2 and sys.argv[1] == "--selenium":
+        if len(sys.argv) == 3 and sys.argv[2] == "--no-extension":
             driver = start_webdriver(False)
         else:
             driver = start_webdriver(True)  # noqa
-        print("\nDropping into ipython shell....\n"
-              "  * Interact with the webdriver instance using `driver`\n"
-              "  * The webdriver and server will close automatically\n"
-              "  * Use `exit` to quit the ipython shell\n")
+        print(
+            "\nDropping into ipython shell....\n"
+            "  * Interact with the webdriver instance using `driver`\n"
+            "  * The webdriver and server will close automatically\n"
+            "  * Use `exit` to quit the ipython shell\n"
+        )
         logger = Logger()  # noqa
         IPython.embed()
     else:
-        print("Unrecognized arguments. Usage:\n"
-              "python manual_test.py ('--selenium')? ('--no-extension')?")
+        print(
+            "Unrecognized arguments. Usage:\n"
+            "python manual_test.py ('--selenium')? ('--no-extension')?"
+        )
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

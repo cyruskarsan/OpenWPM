@@ -42,14 +42,14 @@ def build_data_aggregator_class(manager_params):
     output_destination = manager_params["output_destination"]
     output_destination_type = manager_params["output_destination_type"]
 
-    if output_structured_format == 'parquet' and output_destination_type == 'local':
-        raise ValueError('Unsupported config.')
-    if output_unstructured_format == 'gzip' and output_destination_type == 'local':
-        raise ValueError('Unsupported config.')
-    if output_structured_format == 'sqlite' and output_destination_type == 's3':
-        raise ValueError('Unsupported config.')
-    if output_unstructured_format == 'leveldb' and output_destination_type == 's3':
-        raise ValueError('Unsupported config.')
+    if output_structured_format == "parquet" and output_destination_type == "local":
+        raise ValueError("Unsupported config.")
+    if output_unstructured_format == "gzip" and output_destination_type == "local":
+        raise ValueError("Unsupported config.")
+    if output_structured_format == "sqlite" and output_destination_type == "s3":
+        raise ValueError("Unsupported config.")
+    if output_unstructured_format == "leveldb" and output_destination_type == "s3":
+        raise ValueError("Unsupported config.")
 
     methods_dict = {}
     if output_structured_format == "sqlite":
@@ -57,12 +57,13 @@ def build_data_aggregator_class(manager_params):
             __init__,
             _create_tables,
             _get_last_used_ids,
-            save_configuration,
-            get_next_visit_id,
             get_next_crawl_id,
+            get_next_visit_id,
             launch,
-            shutdown
+            save_configuration,
+            shutdown,
         )
+
         methods_dict = dict(
             __init__=__init__,
             _create_tables=_create_tables,
@@ -77,11 +78,12 @@ def build_data_aggregator_class(manager_params):
         from .s3 import (
             __init__,
             _create_bucket,
-            save_configuration,
-            get_next_visit_id,
             get_next_crawl_id,
+            get_next_visit_id,
             launch,
+            save_configuration,
         )
+
         methods_dict = dict(
             __init__=__init__,
             _create_bucket=_create_bucket,
@@ -93,8 +95,8 @@ def build_data_aggregator_class(manager_params):
     else:
         raise Exception(f"Unrecognized output format: {output_format}")
     DataAggregator = type(
-        'DataAggregator',
-        (BaseAggregator, ),
+        "DataAggregator",
+        (BaseAggregator,),
         methods_dict,
     )
     return DataAggregator

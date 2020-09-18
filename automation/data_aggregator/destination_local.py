@@ -1,18 +1,14 @@
-
 import base64
 import json
 import time
 from typing import Any, Dict, Tuple, Union
 
-from .base import (
-    BaseParams,
-)
+from .base import BaseParams
 
 
-
-def listener_process_runner(base_params: BaseParams,
-                            manager_params: Dict[str, Any],
-                            ldb_enabled: bool) -> None:
+def listener_process_runner(
+    base_params: BaseParams, manager_params: Dict[str, Any], ldb_enabled: bool
+) -> None:
     """LocalListener runner. Pass to new process"""
     listener = LocalListener(base_params, manager_params, ldb_enabled)
     listener.startup()
